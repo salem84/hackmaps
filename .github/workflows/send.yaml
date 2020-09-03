@@ -1,0 +1,37 @@
+name: deploy_to_channel_on_demand
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: "echo $GITHUB_CONTEXT"
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+      - uses: octokit/graphql-action@v2.x
+        id: get_user_info
+        with:
+          query: |
+            query info($owner:String!) { 
+              user(login: $owner) {
+                location
+              }
+            }
+          owner: ${{ github.actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+               
+      - uses: satak/webrequest-action@master
+        env:
+          USERLOCATION: ${{ steps.get_user_info.outputs.data }}
+          USERNAME: ${{ github.actor }}
+          REPOSITORY: ${{ github.repository }}
+        with:
+            url: 'https://receivedata20200904003855.azurewebsites.net/api/ReceiveIssue'
+            method: 'POST'
+            headers: '{"x-functions-key": "${{ secrets.FUNCTION_KEY }}"}'
+            payload: '{ "location": ${{ env.USERLOCATION }}, "repository": "${{ env.REPOSITORY }}", "username": "${{ env.USERNAME }}" }'
